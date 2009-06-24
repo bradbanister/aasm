@@ -9,12 +9,14 @@ module AASM
       (@machines ||= {})[args] = val
     end
     
-    attr_accessor :states, :events, :initial_state
+    attr_accessor :states, :events, :initial_state, :before_all_transition, :after_all_transition
     attr_reader :name
     
     def initialize(name)
       @name   = name
       @initial_state = nil
+      @before_all_transition = nil
+      @after_all_transition  = nil
       @states = []
       @events = {}
     end

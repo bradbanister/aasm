@@ -47,3 +47,15 @@ describe AASM::SupportingClasses::Event, 'when firing an event' do
     event.fire(obj).should == :closed
   end
 end
+
+describe AASM::SupportingClasses::Event, 'when declaring the transitions in event block ' do
+  it 'should raise an AASM::InvalidTransition error if the transitions are ambiguous' do
+    lambda {
+      AASM::SupportingClasses::Event.new(:event) do
+        transitions :from => [:one, :two], :to => [:four,:five], :on_transition => :do_one
+        transitions :from => [:one, :three], :to => [:five, :six], :on_transition => :do_two
+      end
+    }.should raise_error(AASM::InvalidTransition)
+  end
+end
+

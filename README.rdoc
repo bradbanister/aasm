@@ -7,18 +7,49 @@ AASM started as the acts_as_state_machine plugin but has evolved into a more gen
 AASM has the following features:
 
 * States
+  	- enter
+	- exit
 * Machines
 * Events
+	- name
+	- success -> callback
+	- transitions block
 * Transitions
+	- from
+	- to
+	- on_transition -> callback
+	- guard (returns true or false)
+* Callbacks 
+	- aasm_before_all_transition -> callback before transition begins
+ 	- aasm_after_all_transition -> callback after transition ends
+* default and specific log features
+	- aasm_log_transition -> instance variable that determines whether to log or not. Defaults to true
+  	- aasm_log_method -> the method name for common logging name. Defaults to: aasm_log_transition
+	- aasm_<event_name>_log -> if you want to have a specific log for one particular event
+	                          just implement a method with this naming convention: aasm_<event_name>_log
+	- aasm also provided the event name, from state and to state to the instance by populating there instance variables:   
+		self.aasm_event_name, self.aasm_old_state, self.aasm_new_state 
+		
+* transaction if we choose to persist the transition
+* By including AASM, you will have access to these instance methods:
+	- <state_name>? -> check if the model is in that state
+	- aasm_current_state -> returns the current state of model
+	- <event_name>! -> behaves like save!
+	- <event_name>  -> behaves like save
+	- <event_name>_not_persist -> doesn't save to database
+	- aasm_events_for_state -> all events that include the passed state in the from transitions
+	- aasm_events_for_current_state -> all events that include the current state in the from transitions
+* By including AASM, you will have access to these class methods:
+	- aasm_states_for_select -> returns options for all states defined
+	
 
 == Download
 
 The latest AASM can currently be pulled from the git repository on github.
 
-* http://github.com/rubyist/aasm/tree/master
+* http://github.com/mumboe/aasm
 
 A release and a gem are forthcoming.
-
 
 
 == Installation
@@ -26,7 +57,7 @@ A release and a gem are forthcoming.
 === From GitHub hosted gems
 
   % sudo gem sources -a http://gems.github.com # (you only need to do this once)
-  % sudo gem install rubyist-aasm
+  % sudo gem install mumboe-aasm
 
 === Building your own gems
 
@@ -59,8 +90,9 @@ Here's a quick example highlighting some of the features.
 
 = Other Stuff
 
-Author::  Scott Barron <scott at elitists dot net>
-License:: Copyright 2006, 2007, 2008 by Scott Barron.
+Author::  Mumboe Development Team, Scott Barron <scott at elitists dot net>
+License:: Copyright 2009 by Mumboe
+          Copyright 2006, 2007, 2008 by Scott Barron.
           Released under an MIT-style license.  See the LICENSE  file
           included in the distribution.
 

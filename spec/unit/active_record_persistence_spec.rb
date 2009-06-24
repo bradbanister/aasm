@@ -1,4 +1,5 @@
 require File.join(File.dirname(__FILE__), '..', '..', 'lib', 'aasm')
+require File.join(File.dirname(__FILE__), '..', 'spec_helper')
 
 begin
   require 'rubygems'
@@ -6,6 +7,20 @@ begin
 
   # A dummy class for mocking the activerecord connection class
   class Connection
+  end
+
+  class ExtFooBar < ActiveRecord::Base
+    include AASM
+
+    # Fake this column for testing purposes
+    attr_accessor :aasm_state
+
+    aasm_state :open
+    aasm_state :closed
+
+    aasm_event :view do
+      transitions :to => :closed, :from => [:open]
+    end
   end
 
   class FooBar < ActiveRecord::Base
@@ -31,6 +46,13 @@ begin
 
   class Fo < ActiveRecord::Base
     def aasm_write_state(state)
+      "fo"
+    end    
+    include AASM
+  end
+
+  class ExtFo < ActiveRecord::Base
+    def aasm_write_state!(state)
       "fo"
     end    
     include AASM
@@ -87,6 +109,22 @@ begin
   describe Fo, "class methods" do
     before(:each) do
       @klass = Fo
+    end
+    it_should_behave_like "aasm model"
+    it "should include AASM::Persistence::ActiveRecordPersistence::ReadState" do
+      @klass.included_modules.should be_include(AASM::Persistence::ActiveRecordPersistence::ReadState)
+    end    
+    it "should not include AASM::Persistence::ActiveRecordPersistence::WriteState" do
+      @klass.included_modules.should_not be_include(AASM::Persistence::ActiveRecordPersistence::WriteState)
+    end    
+    it "should include AASM::Persistence::ActiveRecordPersistence::WriteStateWithoutPersistence" do
+      @klass.included_modules.should be_include(AASM::Persistence::ActiveRecordPersistence::WriteStateWithoutPersistence)
+    end    
+  end
+
+  describe ExtFo, "class methods" do
+    before(:each) do
+      @klass = ExtFo
     end
     it_should_behave_like "aasm model"
     it "should include AASM::Persistence::ActiveRecordPersistence::ReadState" do
@@ -177,6 +215,18 @@ begin
     end
     
   end
+
+  describe ExtFooBar, "instance methods" do
+    before(:each) do
+      connection = mock(Connection, :columns => [])
+      ExtFooBar.stub!(:connection).and_return(connection)
+    end
+
+    it "should respond to aasm read state with bang when not previously defined" do
+      ExtFooBar.new.should respond_to(:aasm_write_state!)
+    end
+  end
+
 
   # TODO: figure out how to test ActiveRecord reload! without a database
 

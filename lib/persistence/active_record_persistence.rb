@@ -35,7 +35,7 @@ module AASM
         base.extend AASM::Persistence::ActiveRecordPersistence::ClassMethods
         base.send(:include, AASM::Persistence::ActiveRecordPersistence::InstanceMethods)
         base.send(:include, AASM::Persistence::ActiveRecordPersistence::ReadState) unless base.method_defined?(:aasm_read_state)
-        base.send(:include, AASM::Persistence::ActiveRecordPersistence::WriteState) unless base.method_defined?(:aasm_write_state)
+        base.send(:include, AASM::Persistence::ActiveRecordPersistence::WriteState) unless base.method_defined?(:aasm_write_state) or base.method_defined?(:aasm_write_state!) 
         base.send(:include, AASM::Persistence::ActiveRecordPersistence::WriteStateWithoutPersistence) unless base.method_defined?(:aasm_write_state_without_persistence)
         
         if base.respond_to?(:named_scope)
@@ -179,14 +179,32 @@ module AASM
         # 
         #   foo = Foo.find(1)
         #   foo.aasm_current_state # => :opened
-        #   foo.close!
+        #   foo.close
         #   foo.aasm_current_state # => :closed
         #   Foo.find(1).aasm_current_state # => :closed
         #
         # NOTE: intended to be called from an event
         def aasm_write_state(state)
-          update_attribute(self.class.aasm_column, state.to_s)
+          write_attribute(self.class.aasm_column, state.to_s)
+          self.save
         end
+
+        # Writes <tt>state</tt> to the state column and persists it to the database
+        # using update_attributes! (which doesn't bypasses validation and 
+        # will raise an exception if record is invalid)
+        # 
+        #   foo = Foo.find(1)
+        #   foo.aasm_current_state # => :opened
+        #   foo.close!
+        #   foo.aasm_current_state # => :closed
+        #   Foo.find(1).aasm_current_state # => :closed
+        #
+        # NOTE: intended to be called from an event
+        def aasm_write_state!(state)
+          write_attribute(self.class.aasm_column, state.to_s)
+          self.save!
+        end
+
       end
 
       module ReadState

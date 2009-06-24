@@ -139,10 +139,10 @@ describe AASM, '- event firing with persistence' do
   it 'should attempt to persist if aasm_write_state is defined' do
     foo = Foo.new
     
-    def foo.aasm_write_state
+    def foo.aasm_write_state!
     end
 
-    foo.should_receive(:aasm_write_state)
+    foo.should_receive(:aasm_write_state!)
 
     foo.close!
   end
@@ -166,12 +166,12 @@ describe AASM, '- event firing without persistence' do
   it 'should attempt to persist if aasm_write_state is defined' do
     foo = Foo.new
     
-    def foo.aasm_write_state
+    def foo.aasm_write_state(state)
     end
 
     foo.should_receive(:aasm_write_state_without_persistence)
 
-    foo.close
+    foo.close_not_persist
   end
 end
 
@@ -337,5 +337,165 @@ describe ChetanPatil do
 
     cp.should_receive(:wear_clothes).with('purple', 'slacks')
     cp.dress!(:dating, 'purple', 'slacks')
+  end
+end
+
+class Order
+  include AASM
+  aasm_log_method :my_log_method
+  aasm_initial_state :received
+  aasm_before_all_transition :before_all
+  aasm_after_all_transition Proc.new {|obj| obj.after_all}
+  aasm_state :processed, :enter => Proc.new {|obj| obj.increment_processed_count}, :exit => :increment_processed_exit
+  aasm_state :shipped
+  aasm_state :received
+
+  aasm_event :process do
+    transitions :from => [:received, :processed], :to => :processed
+  end
+
+  aasm_event :ship do
+    transitions :from => :processed, :to => :shipped, \
+      :on_transition => Proc.new {|obj, *args| obj.finally_ship_item(*args)}
+  end
+
+  aasm_event :receive do
+    transitions :from => [:received, :processed, :shipped], :to => :error
+  end
+
+  attr_accessor :processed_count, :processed_exit, :test_attr
+  
+  def after_all(*args)
+  end
+  
+  def before_all(*args)
+  end
+  
+  def increment_processed_count
+    processed_count = 0 if processed_count.nil?
+    processed_count += 1
+  end
+
+  def increment_processed_exit(*args)
+    processed_exit = 0 if processed_exit.nil?
+    processed_exit += 1
+  end
+
+  def finally_ship_item(test)
+    test_attr = test
+  end
+  
+  def my_log_method(user, comment=nil)
+    
+  end
+  
+  def aasm_ship_log(user, comment=nil)
+  end
+  
+  def write_attribute(name, value)
+  end
+  
+  def save
+    true
+  end
+  
+  def save!
+  end
+end
+
+describe Order do
+  it 'should respond to the new non persistent event #{event}_not_persist' do
+    o = Order.new
+    o.process_not_persist
+    
+    o.aasm_current_state.should == :processed
+  end
+  
+  it 'should respond to the new persistent wihtout bang' do
+    o = Order.new
+    o.should_receive(:aasm_write_state)
+    o.process
+    
+    o.aasm_current_state.should == :processed
+  end
+
+  it 'should call the before all transition callback' do
+    o = Order.new
+    o.should_receive(:aasm_write_state)
+    o.should_receive(:before_all)
+    o.process
+    
+    o.aasm_current_state.should == :processed
+  end
+
+  it 'should call the after all transition callback, which in turn call after all method' do
+    o = Order.new
+    o.should_receive(:aasm_write_state)
+    o.should_receive(:after_all)
+    o.process
+    
+    o.aasm_current_state.should == :processed
+  end
+
+
+  it 'should respond to the new persistent with bang' do
+    o = Order.new
+    o.should_receive(:aasm_write_state!)
+    o.process!
+    
+    o.aasm_current_state.should == :processed
+  end
+
+  it 'since we specify we want to log, we will log the event' do
+    o = Order.new
+    o.should_receive(:my_log_method)
+    o.process!
+    
+    o.aasm_current_state.should == :processed
+  end
+
+  it 'since we specify we don\'t want to log, we will not log the event' do
+    o = Order.new
+    o.aasm_log_transition = false
+    o.should_not_receive(:my_log_method)
+    o.process!
+    
+    o.aasm_current_state.should == :processed
+  end
+
+  it 'we should still execute the callback even though we are transitioning to and from the same state' do
+    o = Order.new
+    o.aasm_current_state.should == :received
+    o.process!    
+    o.aasm_current_state.should == :processed
+    
+    o.should_receive(:my_log_method, 2)
+    o.should_receive(:increment_processed_count)
+    o.should_receive(:increment_processed_exit)
+    o.should_receive(:aasm_write_state!)
+    o.process!
+    o.aasm_current_state.should == :processed
+  end
+
+  it 'if we create a specialized log method by convention of: "aasm_#{event_name}_log", we will executed that log if the log is enabled' do
+    o = Order.new
+    o.process
+    
+    o.aasm_current_state.should == :processed
+    
+    o.should_receive(:aasm_ship_log)
+    o.ship!(:shipped, true)
+    o.aasm_current_state.should == :shipped    
+  end
+
+  it 'if we don\'t pass the destination state, it should just go to the first one. ' do
+    o = Order.new
+    o.process
+    
+    o.aasm_current_state.should == :processed
+    
+    o.should_receive(:aasm_ship_log)
+    o.ship!(true)
+    o.aasm_current_state.should == :shipped    
   end
 end
